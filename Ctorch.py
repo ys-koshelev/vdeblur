@@ -1,6 +1,8 @@
 import torch
 
 # Initialization of a PyTorch complex tensor
+'''
+TWO TIMES SLOWER VERSION IF EVALUATING ON CPU
 def Cinit(real=None,imag=None):
     """
     Converts two real PyTorch tensors to a complex one by unsqueezing and then concatenating in last dimension
@@ -25,6 +27,33 @@ def Cinit(real=None,imag=None):
         real = imag.new(imag.shape).fill(0);
         
     return torch.cat((real.unsqueeze(-1),imag.unsqueeze(-1)),dim=-1);
+'''
+
+def Cinit(real=None,imag=None):
+    """
+    Converts two real PyTorch tensors to a complex one by unsqueezing and then concatenating in last dimension
+    
+    Parameters
+    ----------
+    real[torch.(cuda)Tensor]: PyTorch tensor of an arbitrary shape and type, default=None 
+        Tensor containing a real part
+    imag[torch.(cuda)Tensor]: PyTorch tensor of an arbitrary shape and type, default=None 
+            Tensor containing an imaginary part
+            
+    Returns
+    -------
+    ret[torch.(cuda).Tensor]: None if both inputs are None, double sized tensor with last dimension of size 2 with real and imaginary parts
+        Corresponding complex tensor
+    """
+    if (real is None)&(imag is None):
+        return None;
+    
+    ret = real.new(real.shape + (2,)).fill_(0);
+    if imag is not(None):
+        ret[...,1] = imag;
+    if real is not(None):
+        ret[...,0] = real;
+    return ret;
 
 # Operations, converting PyTorch complex tensor to several real ones
 def Creal(input):
