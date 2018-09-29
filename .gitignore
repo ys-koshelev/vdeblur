@@ -110,3 +110,6 @@ trained/
 
 # trained models
 *.pt
+
+# mac os stuff
+.DS_Store
