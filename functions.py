@@ -2,7 +2,7 @@ import torch
 import torch.nn as nn
 from Ctorch import Cinit, Cabs
 
-def psf2otf_torch_fast(psf, out_shape):
+def psf2otf_torch(psf, out_shape):
     """
     Convert point-spread function to optical transfer function.
 
@@ -18,7 +18,7 @@ def psf2otf_torch_fast(psf, out_shape):
     ----------
     psf[torch.(cuda).Tensor]: batch of real-valued tensor of shape [out_channels,in_channels,H,W]
         Point Spread Function
-    out_shape[tuple or shape]: 2 numbers in the order of H,W
+    out_shape[tuple or torch.Size]: 2 numbers in the order of H,W
         Shape of the output Optical Transfer Function
 
     Returns
@@ -37,16 +37,61 @@ def psf2otf_torch_fast(psf, out_shape):
     modW = psf_shape[3]%2;
     
     # Extending and filling PSF assuming periodic boundaries
-    pre_otf = psf.new(psf.shape[:2] + out_shape + (2,)).fill_(0);
-    pre_otf[:,:,-midH:, -midW:,0] = psf[:,:,:midH, :midW];
-    pre_otf[:,:,-midH:, :(midW + modW),0] = psf[:,:,:midH, midW:];
-    pre_otf[:,:,:(midH + modH), -midW:,0]  = psf[:,:,midH:, :midW];
-    pre_otf[:,:,:(midH + modH), :(midW + modW),0] = psf[:,:,midH:, midW:];
+    pre_otf = psf.new(psf.shape[:2] + out_shape).fill_(0);
+    pre_otf[:,:,-midH:, -midW:] = psf[:,:,:midH, :midW];
+    pre_otf[:,:,-midH:, :(midW + modW)] = psf[:,:,:midH, midW:];
+    pre_otf[:,:,:(midH + modH), -midW:]  = psf[:,:,midH:, :midW];
+    pre_otf[:,:,:(midH + modH), :(midW + modW)] = psf[:,:,midH:, midW:];
     
     # Fast fourier transform, transposed because tensor must have shape [..., height, width] for this
-    otf = torch.fft(pre_otf,signal_ndim=2);
+    otf = torch.rfft(pre_otf,signal_ndim=2, onesided=False);
 
     return otf
+
+def otf2psf_torch(otf,out_shape):
+    """
+    Convert optical transfer function to point-spread function.
+    
+    Computes the inverse Fast Fourier Transform (IFFT)
+    of the optical transfer function (OTF) array and creates a point spread
+    function (PSF), centered at the origin.
+
+    To center the PSF at the origin, otf2psf circularly shifts the values
+    of the output array down (or to the right) until the (1,1) element
+    reaches the central position, then it crops the result to match
+    dimensions specified by out_shape.
+
+    Parameters
+    ----------
+    otf[torch.(cuda).Tensor]: batch of complex-valued tensor of shape [out_channels,in_channels,H,W,2]
+        Optical Transfer Function
+    out_shape[tuple or torch.Size]: 2 numbers in the order of H,W
+        Shape of the output Point Spread Function
+
+    Returns
+    -------
+    otf[torch.(cuda).Tensor]: complex-valued tensor of shape [out_channels,in_channels,out_shape[0],out_shape[1]]
+        Point Spread Function
+    """
+    # reserving memory for PSF tensors
+    psf = otf.new(otf.shape[:-3] + out_shape);
+    
+    # Coordinates with which the PSF tensors were splitted
+    midH = out_shape[0]//2;
+    modH = out_shape[0]%2;
+    midW = out_shape[1]//2;
+    modW = out_shape[1]%2;
+    
+    # Converting OTFs to a real space
+    pre_psf = torch.irfft(otf, 2, onesided=False);
+    
+    # Extending and filling PSFs assuming periodic boundaries
+    psf[:,:,:midH, :midW] = pre_psf[:, :,-midH:, -midW:];
+    psf[:,:,:midH, midW:] = pre_psf[:, :,-midH:, :(midW + modW)];
+    psf[:,:,midH:, :midW] = pre_psf[:, :, :(midH + modH), -midW:];
+    psf[:,:,midH:, midW:] = pre_psf[:, :, :(midH + modH), :(midW + modW)];
+    
+    return psf;
 
 def pad_for_kernel_torch(imgs,kernels):
     shape = kernels.shape;
@@ -119,3 +164,13 @@ def edgetaper_torch(imgs,kernels,n_tapers=3):
                                        flip_kernels(kernels),groups=kernels.shape[0]).permute(1,0,2,3);
         imgs = alphas*imgs + (1-alphas)*blurred;
     return imgs;
+
+def adjust_bounds(x,y,k):
+    k_shape = k.shape;
+    p_h = ((k_shape[-2]-1)//2);
+    p_w = ((k_shape[-1]-1)//2);
+    x_blurred = nn.functional.conv2d(pad_for_kernel_circ_torch(x,k).permute(1,0,2,3),
+                                       flip_kernels(k),groups=k.shape[0]).permute(1,0,2,3);
+    
+    x_blurred[:,:,p_h:-p_h,p_w:-p_w] = y[:,:,:,:];
+    return x_blurred;

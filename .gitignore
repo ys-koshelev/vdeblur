@@ -102,3 +102,11 @@ venv.bak/
 
 # mypy
 .mypy_cache/
+
+# folders containing large files
+dataset/
+tboard/
+trained/
+
+# trained models
+*.pt
