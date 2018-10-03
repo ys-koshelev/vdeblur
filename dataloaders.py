@@ -181,7 +181,7 @@ class Dataset_color(torch.utils.data.Dataset):
         return (gt,blurred,kern,lam.unsqueeze(0));
     
 class Dataset_color_wiener(torch.utils.data.Dataset):
-    def __init__(self, root_dir,kern_augment=False,img_augment=False,img_size=(255,255),train=True,noise=1):
+    def __init__(self, root_dir,kern_augment=False,img_augment=False,img_size=(255,255),train=True,noise=3):
         # init params
         self.root_dir = root_dir;
 #        self.crop = crop;

@@ -54,17 +54,26 @@ class WienerDeconvolution(nn.Module):
     def __init__(self, n_filters=8, filter_size=3, grayscale=False):
         super(WienerDeconvolution, self).__init__()
         
-        self.lam = nn.Parameter(torch.rand(1).squeeze());
+        self.lam1 = nn.Parameter(torch.rand(1).squeeze());
         
-        self.function = WienerFunction;
+        self.function1 = WienerFunction;
+        
+        #self.lam2 = nn.Parameter(torch.rand(1).squeeze());
+        
+        #self.function2 = WienerFunction;
         
         if grayscale:
-            self.filters = nn.Parameter(nn.init.kaiming_normal_(torch.zeros(n_filters,1,filter_size,filter_size)));
+            self.filters1 = nn.Parameter(nn.init.kaiming_normal_(torch.zeros(n_filters,1,filter_size,filter_size)));
+        #    self.filters2 = nn.Parameter(nn.init.kaiming_normal_(torch.zeros(n_filters,1,filter_size,filter_size)));
         else:
-            self.filters = nn.Parameter(nn.init.kaiming_normal_(torch.zeros(n_filters,3,filter_size,filter_size)));
+            self.filters1 = nn.Parameter(nn.init.kaiming_normal_(torch.zeros(n_filters,3,filter_size,filter_size)));
+        #    self.filters2 = nn.Parameter(nn.init.kaiming_normal_(torch.zeros(n_filters,3,filter_size,filter_size)));
         
     def forward(self,inputs):
         y, k = inputs;
         x = edgetaper_torch(pad_for_kernel_torch(y, k), k);
         
-        return self.function.apply(x, k, self.lam, self.filters);
+        x = self.function1.apply(x, k, self.lam1, self.filters1);
+        #x = self.function2.apply(x, k, self.lam2, self.filters2);
+        
+        return x;

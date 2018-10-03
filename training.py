@@ -214,10 +214,10 @@ def train_wiener(model,num_epochs,directory,b_size,dictname='FNet',pretrained=No
     
     # loading dataset for training
     trainset = Dataset_color_wiener(directory,img_size=(500,500),train=True);
-    trainloader = DataLoader(trainset, batch_size=b_size, shuffle=True, num_workers=12);
+    trainloader = DataLoader(trainset, batch_size=b_size, shuffle=True, num_workers=6);
     
     valset = Dataset_color_wiener(directory,img_size=(500,500),train=False);
-    valloader = DataLoader(trainset, batch_size=b_size, shuffle=False, num_workers=12);
+    valloader = DataLoader(trainset, batch_size=b_size, shuffle=False, num_workers=6);
     
     # optimizer
     opt = torch.optim.Adam(model.parameters(),lr=0.01,weight_decay=1e-6,amsgrad=True);
@@ -275,7 +275,7 @@ def train_wiener(model,num_epochs,directory,b_size,dictname='FNet',pretrained=No
         
         # writing to TensorBoard
         writer.add_scalar('Training time', time() - times, epoch);
-        writer.add_image('Init convolution weights', visualise_weights(model.filters.detach().cpu(),nv=4,nh=2), epoch);
+        writer.add_image('Init convolution weights', visualise_weights(model.filters1.detach().cpu(),nv=4,nh=2), epoch);
         
         if are_nans(model):
             print('NaNs:', 'NaNs detected in weights!', epoch)
